@@ -8,10 +8,9 @@ from multirepo import RepoChangeScheduler, SVN, SVNPoller
 from steps import BuildEgg, BuildSDist, LocalCommand
 
 
-def get_builder_name(target_name, combination, pyver, branch, sandbox=False,
-                     match_all=False):
+def get_builder_name(target_name, combination, pyver, branch, sandbox=False):
     if target_name == combination[0]:
-        if not match_all and branch.name != combination[1]:
+        if branch and branch.name != combination[1]:
             return None
 
         suffix = ""
@@ -22,7 +21,7 @@ def get_builder_name(target_name, combination, pyver, branch, sandbox=False,
         suffix += "sandbox_"
 
 
-    if branch.name != "trunk" or match_all:
+    if branch and branch.name != "trunk":
         name = target_name + "_" + branch.name
     else:
         name = target_name
@@ -87,17 +86,20 @@ class BuildManager(object):
             for combination in self.combinations:
                 for pyver in self.pyvers:
                     python = "python%s" % pyver
+
+                    dir_dict = {}
+
+                    for pkg in ["django", "django-evolution", "djblets"]:
+                        dir_dict[pkg + "_dir"] = \
+                            get_builder_name(pkg, combination, pyver, None)
+
                     env = {
                         'PYTHONPATH':
-                            '.:..:'
-                            '../../django_evolution_%(suffix)s/django:'
-                            '../../djblets_%(suffix)s/djblets:'
-                            '../../django_evolution_%(suffix)s/'
-                            'django-evolution' % {
-                                'suffix': "%s__%s_py%s" % (combination[0],
-                                                           combination[1],
-                                                           pyver)
-                            }
+                            '.:..'
+                            ':../../%(django_dir)s/django'
+                            ':../../%(django-evolution_dir)s/django-evolution'
+                            ':../../%(djblets_dir)s/djblets'
+                            % dir_dict
                     }
 
                     builders.extend(
@@ -212,7 +214,7 @@ class BuildTarget(object):
             branch=None,
             builderNames=builderNames,
             hour=0,
-            minute=10
+            minute=0
         )]
 
     def get_sandbox_schedulers(self):
