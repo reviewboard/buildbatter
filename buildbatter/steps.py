@@ -153,6 +153,39 @@ class DownloadLatestBuild(FileDownload):
         self.finished(FAILURE)
 
 
+class VirtualEnv(ShellCommand):
+    """
+    Sets up a virtualenv install.
+    """
+    name = "virtualenv"
+    haltOnFailure = True
+    description = "Setting up virtualenv"
+    descriptionDone = "virtualenv set up"
+
+    def __init__(self, python, *args, **kwargs):
+        ShellCommand.__init__(self, *args, **kwargs)
+        self.command = [python, "../../virtualenv", "--no-site-packages", "./"]
+
+
+class EasyInstall(ShellCommand):
+    """
+    Installs one or more packages using easy_install.
+    """
+    name = "easy_install"
+    haltOnFailure = True
+    description = "Installing eggs"
+    descriptionDone = "Eggs installed"
+
+    def __init__(self, packages, find_links=[], *args, **kwargs):
+        ShellCommand.__init__(self, *args, **kwargs)
+        self.command = ["easy_install", "--upgrade", "--prefix", "."]
+
+        for link in find_links:
+            self.command.extend(["--find-links", link])
+
+        self.command.extend(packages)
+
+
 class LocalCommand(ShellCommand):
     """
     Runs a local command on the master.

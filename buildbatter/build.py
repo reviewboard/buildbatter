@@ -5,7 +5,7 @@ from buildbot.steps.shell import ShellCommand, Test, SetProperty
 from buildbot.steps.trigger import Trigger
 
 from multirepo import RepoChangeScheduler, SVN, SVNPoller
-from steps import BuildEgg, BuildSDist, LocalCommand
+from steps import BuildEgg, BuildSDist, LocalCommand, VirtualEnv, EasyInstall
 
 
 def get_builder_name(target_name, combination, pyver, branch, sandbox=False):
@@ -86,21 +86,7 @@ class BuildManager(object):
             for combination in self.combinations:
                 for pyver in self.pyvers:
                     python = "python%s" % pyver
-
-                    dir_dict = {}
-
-                    for pkg in ["django", "django-evolution", "djblets"]:
-                        dir_dict[pkg + "_dir"] = \
-                            get_builder_name(pkg, combination, pyver, None)
-
-                    env = {
-                        'PYTHONPATH':
-                            '.:..'
-                            ':../../%(django_dir)s/django'
-                            ':../../%(django-evolution_dir)s/django-evolution'
-                            ':../../%(djblets_dir)s/djblets'
-                            % dir_dict
-                    }
+                    env={}
 
                     builders.extend(
                         target.get_builders(combination, python, pyver, env))
@@ -306,6 +292,10 @@ class BuildRules(object):
                                  str(self.target.nightly) +
                                  ")s")
 
+        self.addTestSteps(f)
+        self.addBuildSteps(f)
+        self.addUploadSteps(f)
+
         for trigger in self.target.triggers:
             f.addStep(CustomTrigger,
                       schedulerNames=[
@@ -318,10 +308,6 @@ class BuildRules(object):
                           "nightly": nightly,
                           "upload_path": WithProperties("%(upload_path:-)s")
                       }, **self.target.trigger_properties))
-
-        self.addTestSteps(f)
-        self.addBuildSteps(f)
-        self.addUploadSteps(f)
 
     def addCheckoutSteps(self, f):
         if self.branch:
@@ -338,9 +324,35 @@ class BuildRules(object):
 
 
 class PythonModuleBuildRules(BuildRules):
-    def __init__(self, build_eggs=True, *args, **kwargs):
+    def __init__(self, upload_path=None, upload_url=None,
+                 build_eggs=True, egg_deps=[], find_links=[],
+                 *args, **kwargs):
         BuildRules.__init__(self, *args, **kwargs)
+        self.upload_path = upload_path
+        self.upload_url = upload_url
         self.build_eggs = build_eggs
+        self.egg_deps = egg_deps
+        self.find_links = find_links
+
+    def addSteps(self, f):
+        f.addStep(VirtualEnv, python=self.python)
+
+        self.env["PATH"] = "bin:../build/bin:/bin:/usr/bin"
+        self.env["PYTHONPATH"] = "lib/%(python)s" \
+                                 ":../build/lib/%(python)s" \
+                                 ":lib/%(python)s/site-packages" \
+                                 ":../build/lib/%(python)s/site-packages" \
+                                 % {
+                                     "python": self.python
+                                 }
+
+        if self.egg_deps:
+            f.addStep(EasyInstall,
+                      packages=self.egg_deps,
+                      find_links=[self.upload_url] + self.find_links,
+                      env=self.env)
+
+        BuildRules.addSteps(self, f)
 
     def addBuildSteps(self, f):
         if self.combination == ("django", "trunk"):
