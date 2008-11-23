@@ -173,8 +173,8 @@ class EasyInstall(ShellCommand):
     """
     name = "easy_install"
     haltOnFailure = True
-    description = "Installing eggs"
-    descriptionDone = "Eggs installed"
+    description = "installing eggs"
+    descriptionDone = "eggs installed"
 
     def __init__(self, packages, find_links=[], *args, **kwargs):
         ShellCommand.__init__(self, *args, **kwargs)

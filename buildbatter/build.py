@@ -346,13 +346,15 @@ class PythonModuleBuildRules(BuildRules):
                                      "python": self.python
                                  }
 
+        self.addEggSteps(f)
+        BuildRules.addSteps(self, f)
+
+    def addEggSteps(self, f):
         if self.egg_deps:
             f.addStep(EasyInstall,
                       packages=self.egg_deps,
                       find_links=[self.upload_url] + self.find_links,
                       env=self.env)
-
-        BuildRules.addSteps(self, f)
 
     def addBuildSteps(self, f):
         if self.combination == ("django", "trunk"):
