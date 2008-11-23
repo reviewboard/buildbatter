@@ -181,7 +181,7 @@ class EasyInstall(ShellCommand):
         self.command = ["easy_install", "--upgrade", "--prefix", "."]
 
         if find_links:
-            self.command.extend(["--find-links", "'%s'" % " ".join(find_links)])
+            self.command.extend(["--find-links", " ".join(find_links)])
 
         self.command.extend(packages)
 
@@ -300,7 +300,7 @@ class NoseTestCaseCounter(LogLineObserver):
 
         line = line.strip()
 
-        if line.startswith("-" * 71):
+        if line.startswith("-" * 40):
             self.finished = True
             return
 
