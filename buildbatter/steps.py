@@ -180,8 +180,8 @@ class EasyInstall(ShellCommand):
         ShellCommand.__init__(self, *args, **kwargs)
         self.command = ["easy_install", "--upgrade", "--prefix", "."]
 
-        for link in find_links:
-            self.command.extend(["--find-links", link])
+        if find_links:
+            self.command.extend(["--find-links", "'%s'" % " ".join(find_links)])
 
         self.command.extend(packages)
 
