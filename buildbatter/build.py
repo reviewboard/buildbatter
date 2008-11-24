@@ -117,7 +117,7 @@ class Branch(object):
                                self.url, self.poll_frequency)
 
     def add_checkout_step(self, f, workdir):
-        f.addStep(SVN, reponame="%s_%s" % (self.target.name, name),
+        f.addStep(SVN, reponame="%s_%s" % (self.target.name, self.name),
                   svnurl=self.url,
                   mode="update",
                   alwaysUseLatest=True,
