@@ -110,10 +110,11 @@ class Branch(object):
         self.target = None
 
     def get_poller(self):
-        if self.poll_frequency == 0:
+        if self.poll_frequency == 0 or not self.url:
             return None
 
-        return self.poll_class(self.name, self.url, self.poll_frequency)
+        return self.poll_class("%s_%s" % (self.target.name, self.name),
+                               self.url, self.poll_frequency)
 
     def add_checkout_step(self, f, workdir):
         f.addStep(SVN, reponame=self.target.name,
@@ -157,29 +158,32 @@ class BuildTarget(object):
             return []
 
         schedulers = []
-        builderNames = []
 
-        for pyver in self.manager.pyvers:
-            for combination in self.manager.combinations:
-                for branch in self.branches:
-                    name = get_builder_name(self.name, combination,
-                                            pyver, branch)
+        for branch in self.branches:
+            builderNames = []
 
-                    if name:
-                        builderNames.append(name)
+            for pyver in self.manager.pyvers:
+                for combination in self.manager.combinations:
+                        name = get_builder_name(self.name, combination,
+                                                pyver, branch)
 
-                        schedulers.append(Triggerable(
-                            name=get_trigger_name(self.name, combination,
-                                                  pyver, branch),
-                            builderNames=[name]
-                        ))
+                        if name:
+                            builderNames.append(name)
 
-        schedulers.append(RepoChangeScheduler(
-            name=self.name,
-            repo_names=[self.name],
-            branch=None, treeStableTimer=60,
-            builderNames=builderNames,
-        ))
+                            schedulers.append(Triggerable(
+                                name=get_trigger_name(self.name, combination,
+                                                      pyver, branch),
+                                builderNames=[name]
+                            ))
+
+            repo_name = "%s_%s" % (self.name, branch.name)
+
+            schedulers.append(RepoChangeScheduler(
+                name=repo_name,
+                repo_names=[repo_name],
+                branch=None, treeStableTimer=60,
+                builderNames=builderNames,
+            ))
 
         return schedulers
 
