@@ -361,21 +361,20 @@ class PythonModuleBuildRules(BuildRules):
                       env=self.env)
 
     def addBuildSteps(self, f):
-        if self.combination == ("django", "trunk"):
-            #f.addStep(ShellCommand,
-            #          command=["rm", "-rf", "build", "dist"],
-            #          description="removing build directory",
-            #          descriptionDone="removed build directory",
-            #          workdir=self.workdir)
-            f.addStep(BuildSDist,
-                      workdir=self.workdir,
-                      use_egg_info=self.build_eggs,
-                      env=self.env)
+        #f.addStep(ShellCommand,
+        #          command=["rm", "-rf", "build", "dist"],
+        #          description="removing build directory",
+        #          descriptionDone="removed build directory",
+        #          workdir=self.workdir)
+        f.addStep(BuildSDist,
+                  workdir=self.workdir,
+                  use_egg_info=self.build_eggs,
+                  env=self.env)
 
-            if self.build_eggs:
-                f.addStep(BuildEgg,
-                          workdir=self.workdir,
-                          env=self.env)
+        if self.build_eggs:
+            f.addStep(BuildEgg,
+                      workdir=self.workdir,
+                      env=self.env)
 
 
 class CustomTrigger(Trigger):
