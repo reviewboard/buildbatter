@@ -39,7 +39,7 @@ class BuildManager(object):
     Manages several BuildTarget and BuildDependency instances, setting up
     polling, dependencies, and slaves.
     """
-    def __init__(self, slave_info, combinations, pyvers=["2.4", "2.5"]):
+    def __init__(self, slave_info, combinations, pyvers=["2.4", "2.5", "2.6"]):
         self.targets = {}
         self.target_list = []
         self.pyvers = pyvers
