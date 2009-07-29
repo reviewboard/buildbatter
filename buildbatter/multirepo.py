@@ -58,6 +58,43 @@ class RepoChangeScheduler(Scheduler):
             return Scheduler.addChange(self, change)
 
 
+# TODO: Merge this and SVN in some form so we don't have so much duplicate
+#       code.
+class Git(source.Git):
+    """
+    A Git source that ties changes directory with the configured repository
+    name for use with RepoChangeScheduler and our GitPoller.
+    """
+    def __init__(self, reponame, allow_patch=True, *args, **kwargs):
+        source.Git.__init__(self, *args, **kwargs)
+        self.reponame = reponame
+        self.allow_patch = allow_patch
+
+    def describe(self, done=False):
+        s = source.Git.describe(self, done)
+        s.insert(1, self.reponame)
+        return s
+
+    def start(self):
+        s = self.build.getSourceStamp()
+        backup_patch = s.patch
+        backup_revision = s.revision
+        backup_alwaysUseLatest = self.alwaysUseLatest
+
+        if s.patch:
+            if self.allow_patch:
+                self.alwaysUseLatest = False
+            else:
+                s.patch = None
+                s.revision = None
+
+        source.Git.start(self)
+
+        s.patch = backup_patch
+        s.revision = backup_revision
+        self.alwaysUseLatest = backup_alwaysUseLatest
+
+
 class SVN(source.SVN):
     """
     An SVN source that ties changes directory with the configured repository

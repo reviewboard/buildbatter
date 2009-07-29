@@ -4,7 +4,7 @@ from buildbot.scheduler import Try_Jobdir, Triggerable, Nightly
 from buildbot.steps.shell import ShellCommand, Test, SetProperty
 from buildbot.steps.trigger import Trigger
 
-from multirepo import RepoChangeScheduler, SVN, SVNPoller
+from multirepo import Git, RepoChangeScheduler, SVN, SVNPoller
 from steps import BuildEgg, BuildSDist, LocalCommand, VirtualEnv, EasyInstall
 
 
@@ -21,7 +21,7 @@ def get_builder_name(target_name, combination, pyver, branch, sandbox=False):
         suffix += "sandbox_"
 
 
-    if branch and branch.name != "trunk":
+    if branch and not branch.is_head():
         name = target_name + "_" + branch.name
     else:
         name = target_name
@@ -100,21 +100,60 @@ class BuildManager(object):
 class Branch(object):
     """
     Information on a branch. This is in charge of setting up any pollers
-    needed. Right now, this is pretty limited to multirepo.SVNPoller.
+    needed. This is meant to be subclassed.
     """
-    def __init__(self, name, url, poll_class=SVNPoller, poll_frequency=60*20):
+    def __init__(self, name, url, poll_class=None, poll_frequency=60*20):
         self.name = name
         self.url = url
         self.poll_class = poll_class
         self.poll_frequency = poll_frequency
         self.target = None
 
+    def is_head(self):
+        assert False
+
     def get_poller(self):
-        if self.poll_frequency == 0 or not self.url:
+        if self.poll_class is None or self.poll_frequency == 0 or not self.url:
             return None
 
         return self.poll_class("%s_%s" % (self.target.name, self.name),
                                self.url, self.poll_frequency)
+
+    def add_checkout_step(self, f, workdir):
+        assert False
+
+
+class GitBranch(Branch):
+    """
+    Information on a branch in Git. This is in charge of setting up any
+    pollers needed.
+    """
+    def __init__(self, upstream_branch, *args, **kwargs):
+        Branch.__init__(self, *args, **kwargs)
+        self.upstream_branch = upstream_branch
+
+    def is_head(self):
+        return self.upstream_branch == "master"
+
+    def add_checkout_step(self, f, workdir):
+        f.addStep(Git, reponame="%s_%s" % (self.target.name, self.name),
+                  repourl=self.url,
+                  mode="update",
+                  alwaysUseLatest=True,
+                  branch=self.upstream_branch,
+                  workdir=workdir)
+
+
+class SVNBranch(Branch):
+    """
+    Information on a branch in SVN. This is in charge of setting up any
+    pollers needed.
+    """
+    def __init__(self, *args, **kwargs):
+        Branch.__init__(self, poll_class=SVNPoller, *args, **kwargs)
+
+    def is_head(self):
+        return self.name == "trunk"
 
     def add_checkout_step(self, f, workdir):
         f.addStep(SVN, reponame="%s_%s" % (self.target.name, self.name),
@@ -296,6 +335,12 @@ class BuildRules(object):
                                  str(self.target.nightly) +
                                  ")s")
 
+        workdir_key = "%s_workdir" % self.target.name
+        f.addStep(SetProperty,
+                  command=["pwd"],
+                  property=workdir_key,
+                  workdir=self.workdir)
+
         self.addTestSteps(f)
         self.addBuildSteps(f)
         self.addUploadSteps(f)
@@ -309,6 +354,7 @@ class BuildRules(object):
                       waitForFinish=self.target.wait_for_triggers or nightly,
                       updateSourceStamp=False,
                       set_properties=dict({
+                          workdir_key: WithProperties("%(" + workdir_key + ")s"),
                           "nightly": nightly,
                           "upload_path": WithProperties("%(upload_path:-)s")
                       }, **self.target.trigger_properties))
