@@ -16,7 +16,7 @@ setup(name="BuildBatter",
       packages=find_packages(),
       install_requires=[
           'virtualenv>=1.0',
-          'buildbot>=0.7.8',
+          'buildbot>=0.7.10',
       ],
       maintainer="Christian Hammond",
       maintainer_email="chipx86@chipx86.com"

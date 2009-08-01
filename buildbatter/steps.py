@@ -289,32 +289,74 @@ class RotateFiles(LocalCommand):
         LocalCommand.start(self)
 
 
-class NoseTestCaseCounter(LogLineObserver):
-    _line_re = re.compile(r'^(.+) ... \w$')
-    numTests = 0
-    finished = False
-
-    def outLineReceived(self, line):
-        if self.finished:
-            return
-
-        line = line.strip()
-
-        if line.startswith("-" * 40):
-            self.finished = True
-            return
-
-        m = self._line_re.search(line)
-        if m:
-            testname, result = m.groups()
-            self.numTests += 1
-            self.step.setProgress("tests", self.numTests)
-
-
 class NoseTests(Test):
     flunkOnWarnings = True
-    progressMetrics = ('tests')
 
-    def __init__(self, *args, **kwargs):
-        Test.__init__(self, *args, **kwargs)
-        self.addLogObserver("stdio", NoseTestCaseCounter())
+    _test_re = re.compile(r'^(.+) \.\.\. (\w+)$')
+    _coverage_re = re.compile(
+        r'^([A-Za-z0-9_.]+)\s+(\d+)\s+(\d+)\s+(\d+)%\s+([\d, -]+)$')
+
+    def setTestResults(self, total, failed, passed, total_statements,
+                       exec_statements):
+        Test.setTestResults(self, total=total, failed=failed, passed=passed)
+
+        total_statements += self.step_status.getStatistic("total-statements", 0)
+        self.step_status.setStatistic("total-statements", total_statements)
+
+        exec_statements += self.step_status.getStatistic("exec-statements", 0)
+        self.step_status.setStatistic("exec-statements", exec_statements)
+
+    def describe(self, done=False):
+        description = Test.describe(self, done)
+
+        if done:
+            if self.step_status.hasStatistic("total-statements"):
+                total_statements = self.step_status.getStatistic("total-statements")
+                exec_statements = self.step_status.getStatistic("exec-statements")
+
+                if total_statements > 0:
+                    coverage_pct = (float(exec_statements) /
+                                    float(total_statements) * 100)
+                    description.append('%d%% code coverage (%d / %d statements)'
+                                       % (coverage_pct, exec_statements,
+                                          total_statements))
+
+        return description
+
+    def evaluateCommand(self, cmd):
+        total = 0
+        passed = 0
+        failed = 0
+        rc = cmd.rc
+
+        total_statements = 0
+        total_exec_statements = 0
+
+        for line in self.getLog("stdio").getText().split("\n"):
+            line = line.strip()
+
+            m = self._test_re.search(line)
+
+            if m:
+                testname, result = m.groups()
+                total += 1
+
+                if result == "ok":
+                    passed += 1
+                else:
+                    failed += 1
+            else:
+                m = self._coverage_re.search(line)
+
+                if m:
+                    package, statements, exec_statements, coverage, missing = \
+                        m.groups()
+
+                    total_statements += int(statements)
+                    total_exec_statements += int(exec_statements)
+
+        self.setTestResults(total=total, failed=failed, passed=passed,
+                            total_statements=total_statements,
+                            exec_statements=total_exec_statements)
+
+        return Test.evaluateCommand(self, cmd)

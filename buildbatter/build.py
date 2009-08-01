@@ -5,7 +5,7 @@ from buildbot.steps.shell import ShellCommand, Test, SetProperty
 from buildbot.steps.trigger import Trigger
 
 from multirepo import Git, RepoChangeScheduler, SVN, SVNPoller
-from steps import BuildEgg, BuildSDist, LocalCommand, VirtualEnv, EasyInstall
+from steps import BuildEgg, BuildSDist, VirtualEnv, EasyInstall
 
 
 def get_builder_name(target_name, combination, pyver, branch, sandbox=False):
