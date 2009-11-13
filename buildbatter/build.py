@@ -166,7 +166,7 @@ class SVNBranch(Branch):
 class BuildTarget(object):
     def __init__(self, name, branches, build_rules=None, dependencies=[],
                  allow_sandbox=False, nightly=False, nightly_hour=0,
-                 nightly_minute=0, triggers=[],
+                 nightly_minute=0, nightly_stagger_interval=0, triggers=[],
                  wait_for_triggers=False, trigger_properties={}):
         self.manager = None
         self.name = name
@@ -180,6 +180,7 @@ class BuildTarget(object):
         self.nightly = nightly
         self.nightly_hour = nightly_hour
         self.nightly_minute = nightly_minute
+        self.nightly_stagger_interval = nightly_stagger_interval
 
         for branch in self.branches:
             branch.target = self
@@ -233,21 +234,31 @@ class BuildTarget(object):
         if not self.nightly:
             return []
 
-        builderNames = []
+        schedulers = []
 
-        for pyver in self.manager.pyvers:
-            for combination in self.manager.combinations:
+        hour = self.nightly_hour
+        minute = self.nightly_minute
+
+        for combination in self.manager.combinations:
+            builderNames = []
+
+            for pyver in self.manager.pyvers:
                 for branch in self.branches:
                     builderNames.append(
                         get_builder_name(self.name, combination, pyver, branch))
 
-        return [Nightly(
-            name=self.name,
-            branch=None,
-            builderNames=builderNames,
-            hour=self.nightly_hour,
-            minute=self.nightly_minute
-        )]
+            schedulers.append(Nightly(
+                name='%s-%s' % (self.name, combination),
+                branch=None,
+                builderNames=builderNames,
+                hour=hour,
+                minute=minute
+            ))
+
+            hour += self.nightly_stagger_interval / 60
+            minute += self.nightly_stagger_interval % 60
+
+        return schedulers
 
     def get_sandbox_schedulers(self):
         if self.allow_sandbox:
