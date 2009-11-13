@@ -165,7 +165,8 @@ class SVNBranch(Branch):
 
 class BuildTarget(object):
     def __init__(self, name, branches, build_rules=None, dependencies=[],
-                 allow_sandbox=False, nightly=False, triggers=[],
+                 allow_sandbox=False, nightly=False, nightly_hour=0,
+                 nightly_minute=0, triggers=[],
                  wait_for_triggers=False, trigger_properties={}):
         self.manager = None
         self.name = name
@@ -177,6 +178,8 @@ class BuildTarget(object):
         self.trigger_properties = trigger_properties
         self.build_rules = build_rules
         self.nightly = nightly
+        self.nightly_hour = nightly_hour
+        self.nightly_minute = nightly_minute
 
         for branch in self.branches:
             branch.target = self
@@ -242,8 +245,8 @@ class BuildTarget(object):
             name=self.name,
             branch=None,
             builderNames=builderNames,
-            hour=0,
-            minute=0
+            hour=self.nightly_hour,
+            minute=self.nightly_minute
         )]
 
     def get_sandbox_schedulers(self):
