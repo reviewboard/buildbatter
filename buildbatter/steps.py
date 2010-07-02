@@ -359,4 +359,7 @@ class NoseTests(Test):
                             total_statements=total_statements,
                             exec_statements=total_exec_statements)
 
-        return Test.evaluateCommand(self, cmd)
+        if rc == SUCCESS and failed:
+            rc = FAILURE
+
+        return rc
