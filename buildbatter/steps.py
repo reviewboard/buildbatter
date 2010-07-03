@@ -359,7 +359,7 @@ class NoseTests(Test):
                             total_statements=total_statements,
                             exec_statements=total_exec_statements)
 
-        if rc == SUCCESS and failed:
+        if failed:
             rc = FAILURE
 
         return rc
