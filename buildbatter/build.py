@@ -246,6 +246,10 @@ class BuildTarget(object):
             hour += self.nightly_stagger_interval / 60
             minute += self.nightly_stagger_interval % 60
 
+            if minute == 60:
+                hour += 1
+                minute = 0
+
         return schedulers
 
     def get_sandbox_schedulers(self):
