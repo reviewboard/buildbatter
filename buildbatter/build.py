@@ -148,7 +148,8 @@ class BuildTarget(object):
     def __init__(self, name, branches, build_rules=None, dependencies=[],
                  allow_sandbox=False, nightly=False, nightly_hour=0,
                  nightly_minute=0, nightly_stagger_interval=0, triggers=[],
-                 wait_for_triggers=False, trigger_properties={}):
+                 wait_for_triggers=False, trigger_properties={},
+                 exclude_from=[]):
         self.manager = None
         self.name = name
         self.branches = branches
@@ -157,6 +158,7 @@ class BuildTarget(object):
         self.triggers = triggers
         self.wait_for_triggers = wait_for_triggers
         self.trigger_properties = trigger_properties
+        self.exclude_from = exclude_from
         self.build_rules = build_rules
         self.nightly = nightly
         self.nightly_hour = nightly_hour
@@ -188,16 +190,19 @@ class BuildTarget(object):
 
             for pyver in self.manager.pyvers:
                 for combination in self.manager.combinations:
-                        name = self.get_builder_name(combination, pyver, branch)
+                    if combination in self.exclude_from:
+                        continue
 
-                        if name:
-                            builderNames.append(name)
+                    name = self.get_builder_name(combination, pyver, branch)
 
-                            schedulers.append(Triggerable(
-                                name=get_trigger_name(self.name, combination,
-                                                      pyver, branch),
-                                builderNames=[name]
-                            ))
+                    if name:
+                        builderNames.append(name)
+
+                        schedulers.append(Triggerable(
+                            name=get_trigger_name(self.name, combination,
+                                                  pyver, branch),
+                            builderNames=[name]
+                        ))
 
             repo_name = "%s_%s" % (self.name, branch.name)
 
@@ -220,6 +225,9 @@ class BuildTarget(object):
         minute = self.nightly_minute
 
         for combination in self.manager.combinations:
+            if combination in self.exclude_from:
+                continue
+
             builderNames = []
 
             for pyver in self.manager.pyvers:
@@ -246,6 +254,9 @@ class BuildTarget(object):
 
             for pyver in self.manager.pyvers:
                 for combination in self.manager.combinations:
+                    if combination in self.exclude_from:
+                        continue
+
                     for branch in self.branches:
                         name = self.get_builder_name(combination, pyver,
                                                      branch, True)
@@ -262,7 +273,7 @@ class BuildTarget(object):
 
     def get_builders(self, combination, python, pyver, env, category="builds",
                      sandbox=False):
-        if self.build_rules is None:
+        if self.build_rules is None or combination in self.exclude_from:
             return []
 
         builders = []
@@ -302,6 +313,8 @@ class BuildTarget(object):
         return []
 
     def get_builder_name(self, combination, pyver, branch, sandbox=False):
+        assert combination not in self.exclude_from
+
         if self.name == combination[0]:
             if branch and branch.name != combination[1]:
                 return None
