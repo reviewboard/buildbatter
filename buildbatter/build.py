@@ -246,9 +246,9 @@ class BuildTarget(object):
             hour += self.nightly_stagger_interval / 60
             minute += self.nightly_stagger_interval % 60
 
-            if minute == 60:
-                hour += 1
-                minute = 0
+            if minute >= 60:
+                hour += minute / 60
+                minute = minute % 60
 
         return schedulers
 
