@@ -16,14 +16,19 @@ def create_slave_list():
         if line.startswith("#") or line == "":
             continue
 
-        name, pyver, password = line.split("\t", 3)
+        try:
+            name, pyver, password = line.split("\t", 3)
+        except ValueError:
+            name, password = line.split("\t", 2)
+            pyver = None
 
         slaves.append(BuildSlave(name, password))
 
-        if pyver not in info:
-            info[pyver] = []
+        if pyver:
+            if pyver not in info:
+                info[pyver] = []
 
-        info[pyver].append(name)
+            info[pyver].append(name)
 
     fp.close()
 
