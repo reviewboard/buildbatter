@@ -8,27 +8,6 @@ from multirepo import Git, RepoChangeScheduler, SVN, SVNPoller
 from steps import BuildEgg, BuildSDist, VirtualEnv, EasyInstall
 
 
-def get_builder_name(target_name, combination, pyver, branch, sandbox=False):
-    if target_name == combination[0]:
-        if branch and branch.name != combination[1]:
-            return None
-
-        suffix = ""
-    else:
-        suffix = "%s_%s_" % (combination[0], combination[1])
-
-    if sandbox:
-        suffix += "sandbox_"
-
-
-    if branch and not branch.is_head():
-        name = target_name + "_" + branch.name
-    else:
-        name = target_name
-
-    return "%s_%spy%s" % (name, suffix, pyver)
-
-
 def get_trigger_name(target_name, combination, pyver, branch):
     suffix = "%s_%s_" % (combination[0], combination[1])
     return "triggered_%s_%spy%s" % (target_name, suffix, pyver)
@@ -102,12 +81,14 @@ class Branch(object):
     Information on a branch. This is in charge of setting up any pollers
     needed. This is meant to be subclassed.
     """
-    def __init__(self, name, url, poll_class=None, poll_frequency=60*20):
+    def __init__(self, name, url, poll_class=None, poll_frequency=60*20,
+                 show_name=True):
         self.name = name
         self.url = url
         self.poll_class = poll_class
         self.poll_frequency = poll_frequency
         self.target = None
+        self.show_name = show_name
 
     def is_head(self):
         assert False
@@ -207,8 +188,7 @@ class BuildTarget(object):
 
             for pyver in self.manager.pyvers:
                 for combination in self.manager.combinations:
-                        name = get_builder_name(self.name, combination,
-                                                pyver, branch)
+                        name = self.get_builder_name(combination, pyver, branch)
 
                         if name:
                             builderNames.append(name)
@@ -245,7 +225,7 @@ class BuildTarget(object):
             for pyver in self.manager.pyvers:
                 for branch in self.branches:
                     builderNames.append(
-                        get_builder_name(self.name, combination, pyver, branch))
+                        self.get_builder_name(combination, pyver, branch))
 
             schedulers.append(Nightly(
                 name='%s-%s' % (self.name, combination),
@@ -267,8 +247,8 @@ class BuildTarget(object):
             for pyver in self.manager.pyvers:
                 for combination in self.manager.combinations:
                     for branch in self.branches:
-                        name = get_builder_name(self.name, combination,
-                                                pyver, branch, True)
+                        name = self.get_builder_name(combination, pyver,
+                                                     branch, True)
 
                         if name:
                             builder_names.append(name)
@@ -291,8 +271,7 @@ class BuildTarget(object):
             if pyver not in self.manager.slave_info:
                 continue
 
-            name = get_builder_name(self.name, combination, pyver,
-                                    branch, sandbox)
+            name = self.get_builder_name(combination, pyver, branch, sandbox)
 
             if not name:
                 continue
@@ -321,6 +300,25 @@ class BuildTarget(object):
                                      "sandbox", True)
 
         return []
+
+    def get_builder_name(self, combination, pyver, branch, sandbox=False):
+        if self.name == combination[0]:
+            if branch and branch.name != combination[1]:
+                return None
+
+            suffix = ""
+        else:
+            suffix = "%s_%s_" % (combination[0], combination[1])
+
+        if sandbox:
+            suffix += "sandbox_"
+
+        name = self.name
+
+        if branch and not branch.is_head() and len(self.branches) > 1:
+            name += "_" + branch.name
+
+        return "%s_%spy%s" % (name, suffix, pyver)
 
 
 class BuildDependency(object):
