@@ -176,9 +176,19 @@ class EasyInstall(ShellCommand):
     description = "installing eggs"
     descriptionDone = "eggs installed"
 
+    # Override to specify a custom URL and hosts pattern
+    pypi_url = None
+    allow_hosts_pattern = None
+
     def __init__(self, packages, find_links=[], *args, **kwargs):
         ShellCommand.__init__(self, *args, **kwargs)
         self.command = ["easy_install", "--upgrade", "--prefix", "."]
+
+        if self.pypi_url:
+            self.command.extend(["-i", self.pypi_url])
+
+        if self.allow_hosts_pattern:
+            self.command.extend(["-H", self.allow_hosts_pattern])
 
         for link in find_links:
             self.command.extend(["--find-links", link])
