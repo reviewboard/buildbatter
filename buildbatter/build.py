@@ -40,21 +40,21 @@ class BuildManager(object):
 
         return pollers
 
-    def get_schedulers(self):
+    def get_schedulers(self, exclude=[]):
         schedulers = []
 
         for target in self.target_list:
-            schedulers.extend(target.get_nightly_schedulers())
+            schedulers.extend(target.get_nightly_schedulers(exclude=exclude))
 
         for target in self.target_list:
-            schedulers.extend(target.get_schedulers())
+            schedulers.extend(target.get_schedulers(exclude=exclude))
 
         for target in self.target_list:
-            schedulers.extend(target.get_sandbox_schedulers())
+            schedulers.extend(target.get_sandbox_schedulers(exclude=exclude))
 
         return schedulers
 
-    def get_builders(self):
+    def get_builders(self, exclude=[]):
         builders = []
         sandbox_builders = []
 
@@ -68,10 +68,12 @@ class BuildManager(object):
                     env={}
 
                     builders.extend(
-                        target.get_builders(combination, python, pyver, env))
+                        target.get_builders(combination, python, pyver, env,
+                                            exclude=exclude))
                     sandbox_builders.extend(
                         target.get_sandbox_builders(combination, python,
-                                                    pyver, env))
+                                                    pyver, env,
+                                                    exclude=exclude))
 
         return builders + sandbox_builders
 
@@ -179,7 +181,7 @@ class BuildTarget(object):
 
         return pollers
 
-    def get_schedulers(self):
+    def get_schedulers(self, exclude=[]):
         if not self.build_rules or self.nightly:
             return []
 
@@ -195,7 +197,7 @@ class BuildTarget(object):
 
                     name = self.get_builder_name(combination, pyver, branch)
 
-                    if name:
+                    if name and name not in exclude:
                         builderNames.append(name)
 
                         schedulers.append(Triggerable(
@@ -215,7 +217,7 @@ class BuildTarget(object):
 
         return schedulers
 
-    def get_nightly_schedulers(self):
+    def get_nightly_schedulers(self, exclude=[]):
         if not self.nightly:
             return []
 
@@ -232,27 +234,31 @@ class BuildTarget(object):
 
             for pyver in self.manager.pyvers:
                 for branch in self.branches:
-                    builderNames.append(
-                        self.get_builder_name(combination, pyver, branch))
+                    name = self.get_builder_name(combination, pyver, branch)
 
-            schedulers.append(Nightly(
-                name='%s-%s' % (self.name, combination),
-                branch=None,
-                builderNames=builderNames,
-                hour=hour,
-                minute=minute
-            ))
+                    if name not in exclude:
+                        builderNames.append(
+                            self.get_builder_name(combination, pyver, branch))
 
-            hour += self.nightly_stagger_interval / 60
-            minute += self.nightly_stagger_interval % 60
+            if builderNames:
+                schedulers.append(Nightly(
+                    name='%s-%s' % (self.name, combination),
+                    branch=None,
+                    builderNames=builderNames,
+                    hour=hour,
+                    minute=minute
+                ))
 
-            if minute >= 60:
-                hour += minute / 60
-                minute = minute % 60
+                hour += self.nightly_stagger_interval / 60
+                minute += self.nightly_stagger_interval % 60
+
+                if minute >= 60:
+                    hour += minute / 60
+                    minute = minute % 60
 
         return schedulers
 
-    def get_sandbox_schedulers(self):
+    def get_sandbox_schedulers(self, exclude=[]):
         if self.allow_sandbox:
             builder_names = []
 
@@ -265,7 +271,7 @@ class BuildTarget(object):
                         name = self.get_builder_name(combination, pyver,
                                                      branch, True)
 
-                        if name:
+                        if name and name not in exclude:
                             builder_names.append(name)
 
             return [Try_Jobdir(
@@ -276,7 +282,7 @@ class BuildTarget(object):
         return []
 
     def get_builders(self, combination, python, pyver, env, category="builds",
-                     sandbox=False):
+                     sandbox=False, exclude=[]):
         if self.build_rules is None or combination in self.exclude_from:
             return []
 
@@ -288,7 +294,7 @@ class BuildTarget(object):
 
             name = self.get_builder_name(combination, pyver, branch, sandbox)
 
-            if not name:
+            if not name or name in exclude:
                 continue
 
             workdir = self.name
@@ -309,10 +315,11 @@ class BuildTarget(object):
 
         return builders
 
-    def get_sandbox_builders(self, combination, python, pyver, env):
+    def get_sandbox_builders(self, combination, python, pyver, env,
+                             exclude=[]):
         if self.allow_sandbox:
             return self.get_builders(combination, python, pyver, env,
-                                     "sandbox", True)
+                                     "sandbox", True, exclude=exclude)
 
         return []
 
