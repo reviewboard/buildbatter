@@ -3,7 +3,7 @@ import subprocess
 
 from buildbot.process.buildstep import BuildStep, LogLineObserver
 from buildbot.process.properties import WithProperties
-from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, STDOUT, STDERR
+from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE
 from buildbot.steps.shell import ShellCommand, Test
 from buildbot.steps.transfer import FileDownload, FileUpload
 
@@ -264,7 +264,7 @@ class UploadDist(FileUpload):
         if not upload_path:
             upload_path = self.default_upload_path
 
-        self.masterdest = WithProperties(upload_path + "/" + self.dest_filename)
+        self.masterdest = upload_path + "/" + self.dest_filename
 
         FileUpload.start(self)
 
