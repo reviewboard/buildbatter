@@ -150,14 +150,15 @@ class BuildTarget(object):
     def __init__(self, name, branches, build_rules=None, dependencies=[],
                  allow_sandbox=False, nightly=False, nightly_hour=0,
                  nightly_minute=0, nightly_stagger_interval=0, triggers=[],
-                 wait_for_triggers=False, trigger_properties={},
-                 exclude_from=[]):
+                 trigger_excludes=[], wait_for_triggers=False,
+                 trigger_properties={}, exclude_from=[]):
         self.manager = None
         self.name = name
         self.branches = branches
         self.dependencies = dependencies
         self.allow_sandbox = allow_sandbox
         self.triggers = triggers
+        self.trigger_excludes = trigger_excludes
         self.wait_for_triggers = wait_for_triggers
         self.trigger_properties = trigger_properties
         self.exclude_from = exclude_from
@@ -382,11 +383,14 @@ class BuildRules(object):
         self.addUploadSteps(f)
 
         for trigger in self.target.triggers:
+            trigger_name = get_trigger_name(trigger, self.combination,
+                                            self.pyver, self.branch)
+
+            if trigger_name in self.target.trigger_excludes:
+                continue
+
             f.addStep(CustomTrigger,
-                      schedulerNames=[
-                          get_trigger_name(trigger, self.combination,
-                                           self.pyver, self.branch),
-                      ],
+                      schedulerNames=[trigger_name],
                       waitForFinish=self.target.wait_for_triggers or nightly,
                       updateSourceStamp=False,
                       set_properties=dict({
